@@ -79,4 +79,4 @@ streamlit run frontend/app.py
 
 ## 📄 Thesis
 
-The accompanying thesis is available [here](thesis/thesis.pdf).
+The accompanying thesis is available [here](multimodal_cxr_rag_ui_public/thesis/thesis.pdf).
