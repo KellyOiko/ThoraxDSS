@@ -1,0 +1,205 @@
+@startuml classes_multimodal_dss
+set namespaceSeparator none
+class "AppConfig" as backend.config.AppConfig {
+  data
+  model
+  random_state : int
+  retrieval
+  sample_size : int
+  use_sample : bool
+  vlm
+}
+class "DataConfig" as backend.config.DataConfig {
+  csv_path : Path
+  data_dir : Path
+  df_sample_path : Path
+  images_dir : Path
+  img_emb_path : Path
+  img_index_path : Path
+  processed_dir : Path
+  reports_dir : Path
+  term_xlsx_path : str
+  text_col : str
+  text_emb_path : Path
+  text_index_path : Path
+  ensure_directories()
+}
+class "DataLoader" as backend.data_loader.DataLoader {
+  config
+  build_openi_pairs() -> pd.DataFrame
+  load_df_sample_if_exists() -> Optional[pd.DataFrame]
+  load_or_build_data() -> pd.DataFrame
+  load_precomputed_artifacts() -> Tuple[Optional[pd.DataFrame], Optional[np.ndarray], Optional[np.ndarray]]
+  prepare_sample(df: pd.DataFrame, use_sample: bool, sample_size: int) -> pd.DataFrame
+  save_artifacts(df_sample: pd.DataFrame, text_emb: np.ndarray, image_emb: np.ndarray)
+  save_df_sample(df_sample: pd.DataFrame) -> None
+}
+class "FAISSIndexer" as backend.encoders.FAISSIndexer {
+  dimension : int
+  index : IndexFlatIP
+  add(embeddings: np.ndarray)
+  load(path: Path, dimension: int)
+  save(path: Path)
+  search(query: np.ndarray, k: int)
+}
+class "ImageEncoder" as backend.encoders.ImageEncoder {
+  config
+  model : CoCa, CustomTextCLIP
+  preprocess : Compose, TfPreprocessTransform, list, tuple
+  tokenizer : HFTokenizer, SigLipTokenizer, SimpleTokenizer
+  encode_images(image_paths: List[Path], batch_size: int) -> np.ndarray
+  encode_single_image(image_path: Path) -> np.ndarray
+  encode_text_for_image_retrieval(query: str) -> np.ndarray
+}
+class "ImageEncoder" as backend.vlm_handler.ImageEncoder {
+  config
+  encode_to_base64(image_path: str) -> str
+}
+class "JSONParser" as backend.validation.JSONParser {
+  clean_json_text(text: str) -> str
+  extract_first_json_object(text: str) -> Optional[Dict]
+  normalize_structure(data: Dict) -> Dict
+  try_parse_with_repair(text: str) -> Optional[Dict]
+}
+class "JSONValidator" as backend.validation.JSONValidator {
+  ALLOWED_CONFIDENCE : set
+  ALLOWED_SIMILARITY : set
+  validate_multicase_json(data: Dict, expected_cases: int) -> Dict[str, Any]
+  validate_pairwise_json(data: Dict) -> Dict[str, Any]
+  validate_patient_only_json(data: Dict) -> Dict[str, Any]
+}
+class "ModelConfig" as backend.config.ModelConfig {
+  clip_model_name : str
+  device : str
+  text_model_name : str
+}
+class "MultimodalRAGSystem" as backend.main.MultimodalRAGSystem {
+  config
+  data_loader
+  df_sample : NoneType
+  image_emb : NoneType, NpzFile, memmap
+  image_encoder
+  image_indexer
+  negation_adjuster
+  retriever
+  term_processor
+  text_emb : NoneType, NpzFile, memmap
+  text_encoder
+  text_indexer
+  validator
+  vlm_handler
+  run_multicase_analysis(query_text: str, patient_path: str, k: int, model: Optional[str], exclude_report: Optional[str]) -> Dict[str, Any]
+  run_retrieval(query: str, patient_img_path: str, k: int, exclude_report: Optional[str]) -> Tuple[List[str], List[str], Optional[pd.DataFrame]]
+}
+class "MultimodalRetriever" as backend.retrieval.MultimodalRetriever {
+  config
+  df_sample : DataFrame
+  image_encoder
+  image_indexer
+  report2idx
+  report_to_paths
+  text_encoder
+  text_indexer
+  run_query(query: str, patient_img_path: Optional[str], k: int, unique_by: str, overfetch: int, fusion: bool, exclude_report: Optional[str]) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame]]
+  search_image2image(patient_img_path: str, k: int, overfetch: int, unique_by: str, exclude_report: Optional[str]) -> List[Dict[str, Any]]
+  search_text2image(query: str, k: int, overfetch: int, unique_by: str, exclude_report: Optional[str]) -> List[Dict[str, Any]]
+  search_text2text(query: str, k: int, overfetch: int, exclude_report: Optional[str]) -> List[Dict[str, Any]]
+}
+class "NegationAdjuster" as backend.negation.NegationAdjuster {
+  bonus_neg : float
+  bonus_pos : float
+  penalty_mismatch : float
+  penalty_missing : float
+  scale : float
+  term_processor
+  compare_findings(patient_text: str, report_text: str) -> Dict[str, List[str]]
+  compute_adjustment(patient_text: str, report_text: str, max_abs: float, normalize_by_terms: bool) -> float
+  get_negation_warnings(patient_text: str, report_text: str) -> List[str]
+}
+class "RetrievalConfig" as backend.config.RetrievalConfig {
+  default_k : int
+  default_overfetch : int
+  max_abs_adjustment : float
+  normalize_by_terms : bool
+  unique_by : str
+  weight_image2image : float
+  weight_text2image : float
+}
+class "TermConfig" as backend.negation.TermConfig {
+  list_connectors : set
+  load_warning : str
+  loaded_xlsx_path : str
+  neg_scope_terminators : set
+  negation_cues : list
+  skip_in_match : set
+  synonyms_map : Dict[str, List[str]]
+  terms : List[str]
+  vocab_xlsx_path : Optional[str]
+}
+class "TermProcessor" as backend.negation.TermProcessor {
+  config
+  phrase_variants : List[Tuple[str, List[str]]]
+  terms
+  token_re
+  build_polarity_map(text: str) -> Dict[str, int]
+}
+class "TextEncoder" as backend.encoders.TextEncoder {
+  config
+  model : SentenceTransformer
+  encode(texts: List[str], batch_size: int, normalize_embeddings: bool) -> np.ndarray
+}
+class "VLMConfig" as backend.config.VLMConfig {
+  connect_timeout : int
+  context_size : int
+  default_model : str
+  jpeg_quality : int
+  max_image_side : int
+  max_tokens : int
+  ollama_url : str
+  read_timeout : int
+  temperature : float
+}
+class "VLMHandler" as backend.vlm_handler.VLMHandler {
+  config
+  image_encoder
+  call_final_assessment(query_text: str, patient_image_path: str, patient_findings: List[str], comparison_summary: List[Dict[str, Any]], negated_terms: List[str], warnings: List[str], model: Optional[str]) -> str
+  call_pairwise(query_text: str, patient_image_path: str, case_image_path: str, case_report: str, case_id: str, warnings: Optional[List[str]], model: Optional[str], precomputed_common: Optional[List[str]], precomputed_diffs: Optional[List[str]]) -> str
+  call_patient_only(query_text: str, patient_image_path: str, model: Optional[str]) -> str
+  generate_stream(payload: Dict[str, Any]) -> Tuple[str, Optional[Dict]]
+}
+class "VLMPromptBuilder" as backend.vlm_handler.VLMPromptBuilder {
+  build_final_assessment_prompt(query_text: str, patient_findings: List[str], comparison_summary: List[Dict[str, Any]], negated_terms: List[str], warnings: List[str]) -> str
+  build_pairwise_prompt(query_text: str, case_report: str, case_id: str, warnings: Optional[List[str]], precomputed_common: Optional[List[str]], precomputed_diffs: Optional[List[str]]) -> str
+  build_patient_only_prompt(query_text: str) -> str
+}
+backend.config.AppConfig --* backend.main.MultimodalRAGSystem : config
+backend.config.DataConfig --* backend.config.AppConfig : data
+backend.config.ModelConfig --* backend.config.AppConfig : model
+backend.config.RetrievalConfig --* backend.config.AppConfig : retrieval
+backend.config.VLMConfig --* backend.config.AppConfig : vlm
+backend.data_loader.DataLoader --* backend.main.MultimodalRAGSystem : data_loader
+backend.encoders.FAISSIndexer --* backend.main.MultimodalRAGSystem : text_indexer
+backend.encoders.FAISSIndexer --* backend.main.MultimodalRAGSystem : text_indexer
+backend.encoders.FAISSIndexer --* backend.main.MultimodalRAGSystem : image_indexer
+backend.encoders.FAISSIndexer --* backend.main.MultimodalRAGSystem : image_indexer
+backend.encoders.ImageEncoder --* backend.main.MultimodalRAGSystem : image_encoder
+backend.encoders.TextEncoder --* backend.main.MultimodalRAGSystem : text_encoder
+backend.negation.NegationAdjuster --* backend.main.MultimodalRAGSystem : negation_adjuster
+backend.negation.TermProcessor --* backend.main.MultimodalRAGSystem : term_processor
+backend.retrieval.MultimodalRetriever --* backend.main.MultimodalRAGSystem : retriever
+backend.validation.JSONValidator --* backend.main.MultimodalRAGSystem : validator
+backend.vlm_handler.ImageEncoder --* backend.vlm_handler.VLMHandler : image_encoder
+backend.vlm_handler.VLMHandler --* backend.main.MultimodalRAGSystem : vlm_handler
+backend.config.DataConfig --o backend.data_loader.DataLoader : config
+backend.config.ModelConfig --o backend.encoders.ImageEncoder : config
+backend.config.ModelConfig --o backend.encoders.TextEncoder : config
+backend.config.RetrievalConfig --o backend.retrieval.MultimodalRetriever : config
+backend.config.VLMConfig --o backend.vlm_handler.ImageEncoder : config
+backend.config.VLMConfig --o backend.vlm_handler.VLMHandler : config
+backend.encoders.FAISSIndexer --o backend.retrieval.MultimodalRetriever : text_indexer
+backend.encoders.FAISSIndexer --o backend.retrieval.MultimodalRetriever : image_indexer
+backend.encoders.ImageEncoder --o backend.retrieval.MultimodalRetriever : image_encoder
+backend.encoders.TextEncoder --o backend.retrieval.MultimodalRetriever : text_encoder
+backend.negation.TermConfig --o backend.negation.TermProcessor : config
+backend.negation.TermProcessor --o backend.negation.NegationAdjuster : term_processor
+@enduml

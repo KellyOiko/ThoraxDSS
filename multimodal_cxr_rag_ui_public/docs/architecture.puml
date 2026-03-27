@@ -1,0 +1,36 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class MultimodalRetriever {
+  +run_query()
+  +_fuse_results()
+}
+
+class NegationAdjuster {
+  +compare_findings()
+  +compute_adjustment()
+}
+
+class TermProcessor {
+  +build_polarity_map()
+}
+
+class VLMHandler {
+  +call_patient_only()
+  +call_pairwise()
+  +call_final_assessment()
+}
+
+class VLMPromptBuilder {
+  +build_patient_only_prompt()
+  +build_pairwise_prompt()
+  +build_final_assessment_prompt()
+}
+
+MultimodalRetriever --> NegationAdjuster : uses
+NegationAdjuster --> TermProcessor : relies on
+
+VLMHandler --> VLMPromptBuilder : builds prompts
+
+MultimodalRetriever --> VLMHandler : provides inputs
+@enduml

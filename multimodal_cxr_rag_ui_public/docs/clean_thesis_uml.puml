@@ -1,0 +1,79 @@
+@startuml multimodal_dss_core
+set namespaceSeparator none
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+class MultimodalRAGSystem {
+  +run_multicase_analysis(query_text, patient_path, k, model, exclude_report)
+  +run_retrieval(query, patient_img_path, k, exclude_report)
+}
+
+class MultimodalRetriever {
+  +run_query(query, patient_img_path, k, unique_by, overfetch, fusion, exclude_report)
+  +search_text2text(query, k, overfetch, exclude_report)
+  +search_text2image(query, k, overfetch, unique_by, exclude_report)
+  +search_image2image(patient_img_path, k, overfetch, unique_by, exclude_report)
+}
+
+class TextEncoder {
+  +encode(texts, batch_size, normalize_embeddings)
+}
+
+class ImageEncoder {
+  +encode_images(image_paths, batch_size)
+  +encode_single_image(image_path)
+  +encode_text_for_image_retrieval(query)
+}
+
+class FAISSIndexer {
+  +add(embeddings)
+  +search(query, k)
+  +load(path, dimension)
+  +save(path)
+}
+
+class TermProcessor {
+  +build_polarity_map(text)
+}
+
+class NegationAdjuster {
+  +compare_findings(patient_text, report_text)
+  +compute_adjustment(patient_text, report_text, max_abs, normalize_by_terms)
+  +get_negation_warnings(patient_text, report_text)
+}
+
+class VLMHandler {
+  +call_patient_only(query_text, patient_image_path, model)
+  +call_pairwise(query_text, patient_image_path, case_image_path, case_report, case_id, warnings, model)
+  +call_final_assessment(query_text, patient_image_path, patient_findings, comparison_summary, negated_terms, warnings, model)
+}
+
+class VLMPromptBuilder {
+  +build_patient_only_prompt(query_text)
+  +build_pairwise_prompt(query_text, case_report, case_id, warnings, precomputed_common, precomputed_diffs)
+  +build_final_assessment_prompt(query_text, patient_findings, comparison_summary, negated_terms, warnings)
+}
+
+' --------------------
+' Relationships
+' --------------------
+
+MultimodalRAGSystem --> MultimodalRetriever
+MultimodalRAGSystem --> TextEncoder
+MultimodalRAGSystem --> ImageEncoder
+MultimodalRAGSystem --> FAISSIndexer
+MultimodalRAGSystem --> TermProcessor
+MultimodalRAGSystem --> NegationAdjuster
+MultimodalRAGSystem --> VLMHandler
+
+MultimodalRetriever --> TextEncoder
+MultimodalRetriever --> ImageEncoder
+MultimodalRetriever --> FAISSIndexer
+MultimodalRetriever --> NegationAdjuster
+
+VLMHandler --> VLMPromptBuilder
+
+TermProcessor --> NegationAdjuster
+
+@enduml
