@@ -1,5 +1,7 @@
 # 🩻 ThoraxDSS — Multimodal RAG for Chest X-ray Analysis
 
+> **Diploma Thesis** • Department of Computer Science and Engineering, University of Ioannina (CSE UOI)
+
 ThoraxDSS is a multimodal clinical decision support system for chest X-ray interpretation.  
 It combines multimodal retrieval, negation-aware radiology term processing, and vision-language models to produce structured, evidence-grounded analyses.
 
